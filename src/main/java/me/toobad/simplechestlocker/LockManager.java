@@ -1,33 +1,103 @@
 package me.toobad.simplechestlocker;
 
-import net.minecraft.nbt.*;
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.registry.RegistryKeys;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.GlobalPos;
 import net.minecraft.world.PersistentState;
+import net.minecraft.world.PersistentStateType;
 import net.minecraft.world.World;
 
 import java.util.*;
 
 public class LockManager extends PersistentState {
     private static final String NAME = "simplechestlocker_data";
-    private static LockManager instance;
 
     private final Map<GlobalPos, UUID> lockedChests = new HashMap<>();
     private final Map<UUID, Map<BlockPos, Set<String>>> trustedPlayers = new HashMap<>();
 
-    /** Singleton fetch (per‑world) */
+    private static final Codec<LockEntry> LOCK_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Identifier.CODEC.fieldOf("dim").forGetter(LockEntry::dimensionId),
+            BlockPos.CODEC.fieldOf("pos").forGetter(LockEntry::pos),
+            Uuids.STRING_CODEC.fieldOf("owner").forGetter(LockEntry::owner)
+    ).apply(instance, LockEntry::new));
+
+    private static final Codec<TrustEntry> TRUST_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Uuids.STRING_CODEC.fieldOf("owner").forGetter(TrustEntry::owner),
+            BlockPos.CODEC.fieldOf("pos").forGetter(TrustEntry::pos),
+            Codec.STRING.listOf().fieldOf("names").forGetter(TrustEntry::names)
+    ).apply(instance, TrustEntry::new));
+
+    private static final Codec<LockManager> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            LOCK_ENTRY_CODEC.listOf().optionalFieldOf("lockedChests", List.of()).forGetter(LockManager::toLockEntries),
+            TRUST_ENTRY_CODEC.listOf().optionalFieldOf("trustedPlayers", List.of()).forGetter(LockManager::toTrustEntries)
+    ).apply(instance, LockManager::new));
+
+    private static final PersistentStateType<LockManager> TYPE = new PersistentStateType<>(
+            NAME,
+            LockManager::new,
+            CODEC,
+            null
+    );
+
     public static LockManager get(ServerWorld world) {
-        if (instance == null) {
-            instance = world.getPersistentStateManager().getOrCreate(
-                    new PersistentState.Type<>(LockManager::new, LockManager::fromNbt, null),
-                    NAME
-            );
+        // Store once in the overworld PSM so all dimensions share the same data.
+        return world.getServer()
+                .getOverworld()
+                .getPersistentStateManager()
+                .getOrCreate(TYPE);
+    }
+
+    public LockManager() {
+    }
+
+    private LockManager(List<LockEntry> locks, List<TrustEntry> trusts) {
+        for (LockEntry entry : locks) {
+            lockedChests.put(entry.toGlobalPos(), entry.owner());
         }
-        return instance;
+
+        for (TrustEntry entry : trusts) {
+            trustedPlayers
+                    .computeIfAbsent(entry.owner(), __ -> new HashMap<>())
+                    .computeIfAbsent(entry.pos(), __ -> new HashSet<>())
+                    .addAll(entry.names());
+        }
+    }
+
+    private List<LockEntry> toLockEntries() {
+        List<LockEntry> entries = new ArrayList<>(lockedChests.size());
+        for (Map.Entry<GlobalPos, UUID> entry : lockedChests.entrySet()) {
+            entries.add(new LockEntry(
+                    entry.getKey().dimension().getValue(),
+                    entry.getKey().pos(),
+                    entry.getValue()
+            ));
+        }
+        return entries;
+    }
+
+    private List<TrustEntry> toTrustEntries() {
+        List<TrustEntry> entries = new ArrayList<>();
+
+        for (Map.Entry<UUID, Map<BlockPos, Set<String>>> ownerEntry : trustedPlayers.entrySet()) {
+            UUID owner = ownerEntry.getKey();
+
+            for (Map.Entry<BlockPos, Set<String>> chestEntry : ownerEntry.getValue().entrySet()) {
+                entries.add(new TrustEntry(
+                        owner,
+                        chestEntry.getKey(),
+                        new ArrayList<>(chestEntry.getValue())
+                ));
+            }
+        }
+
+        return entries;
     }
 
     // --- Locking API ---
@@ -35,7 +105,11 @@ public class LockManager extends PersistentState {
     public static boolean lockChest(ServerWorld world, UUID owner, BlockPos pos) {
         LockManager mgr = get(world);
         GlobalPos key = GlobalPos.create(world.getRegistryKey(), pos);
-        if (mgr.lockedChests.containsKey(key)) return false;
+
+        if (mgr.lockedChests.containsKey(key)) {
+            return false;
+        }
+
         mgr.lockedChests.put(key, owner);
         mgr.markDirty();
         return true;
@@ -55,7 +129,7 @@ public class LockManager extends PersistentState {
         mgr.markDirty();
     }
 
-    // --- Trust API (per‑chest) ---
+    // --- Trust API (per-chest) ---
 
     public static void addTrusted(ServerWorld world, UUID owner, BlockPos pos, String playerName) {
         LockManager mgr = get(world);
@@ -69,13 +143,23 @@ public class LockManager extends PersistentState {
     public static void removeTrusted(ServerWorld world, UUID owner, BlockPos pos, String playerName) {
         LockManager mgr = get(world);
         Map<BlockPos, Set<String>> ownerMap = mgr.trustedPlayers.get(owner);
-        if (ownerMap == null) return;
+
+        if (ownerMap == null) {
+            return;
+        }
+
         Set<String> set = ownerMap.get(pos);
         if (set != null) {
             set.remove(playerName);
-            if (set.isEmpty()) ownerMap.remove(pos);
+            if (set.isEmpty()) {
+                ownerMap.remove(pos);
+            }
         }
-        if (ownerMap.isEmpty()) mgr.trustedPlayers.remove(owner);
+
+        if (ownerMap.isEmpty()) {
+            mgr.trustedPlayers.remove(owner);
+        }
+
         mgr.markDirty();
     }
 
@@ -95,83 +179,13 @@ public class LockManager extends PersistentState {
         );
     }
 
-    // --- NBT Persistence ---
-
-    /** Deserialize all data from NBT */
-    private static LockManager fromNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup regs) {
-        LockManager mgr = new LockManager();
-
-        // Locked chests
-        NbtList lockList = nbt.getList("lockedChests", NbtElement.COMPOUND_TYPE);
-        for (int i = 0; i < lockList.size(); i++) {
-            NbtCompound tag = lockList.getCompound(i);
-            UUID owner = tag.getUuid("owner");
-            BlockPos pos = BlockPos.fromLong(tag.getLong("pos"));
-
-            // Use the public single‑arg Identifier.parse
-            String dimString = tag.getString("dim");
-            Identifier dimId = Identifier.of(dimString);
-            RegistryKey<World> dimKey = RegistryKey.of(RegistryKeys.WORLD, dimId);
-
-            mgr.lockedChests.put(GlobalPos.create(dimKey, pos), owner);
+    private record LockEntry(Identifier dimensionId, BlockPos pos, UUID owner) {
+        private GlobalPos toGlobalPos() {
+            RegistryKey<World> dimKey = RegistryKey.of(RegistryKeys.WORLD, dimensionId);
+            return GlobalPos.create(dimKey, pos);
         }
-
-        // Trusted players
-        NbtList trustList = nbt.getList("trustedPlayers", NbtElement.COMPOUND_TYPE);
-        for (int i = 0; i < trustList.size(); i++) {
-            NbtCompound tag = trustList.getCompound(i);
-            UUID owner = tag.getUuid("owner");
-            BlockPos pos = BlockPos.fromLong(tag.getLong("pos"));
-
-            NbtList names = tag.getList("names", NbtElement.STRING_TYPE);
-            Set<String> set = mgr.trustedPlayers
-                    .computeIfAbsent(owner, __ -> new HashMap<>())
-                    .computeIfAbsent(pos, __ -> new HashSet<>());
-
-            for (int j = 0; j < names.size(); j++) {
-                set.add(names.getString(j));
-            }
-        }
-
-        return mgr;
     }
 
-    /** Serialize all data to NBT */
-    @Override
-    public NbtCompound writeNbt(NbtCompound nbt, net.minecraft.registry.RegistryWrapper.WrapperLookup regs) {
-        // Locked chests
-        NbtList lockList = new NbtList();
-        for (var entry : lockedChests.entrySet()) {
-            NbtCompound tag = new NbtCompound();
-            tag.putUuid("owner", entry.getValue());
-            tag.putLong("pos", entry.getKey().pos().asLong());
-            tag.putString("dim", entry.getKey().dimension().getValue().toString());
-            lockList.add(tag);
-        }
-        nbt.put("lockedChests", lockList);
-
-        // Trusted players
-        NbtList trustList = new NbtList();
-        for (var ownerEntry : trustedPlayers.entrySet()) {
-            UUID owner = ownerEntry.getKey();
-            for (var chestEntry : ownerEntry.getValue().entrySet()) {
-                BlockPos pos = chestEntry.getKey();
-                Set<String> names = chestEntry.getValue();
-
-                NbtCompound tag = new NbtCompound();
-                tag.putUuid("owner", owner);
-                tag.putLong("pos", pos.asLong());
-
-                NbtList nameList = new NbtList();
-                for (String name : names) {
-                    nameList.add(NbtString.of(name));
-                }
-                tag.put("names", nameList);
-                trustList.add(tag);
-            }
-        }
-        nbt.put("trustedPlayers", trustList);
-
-        return nbt;
+    private record TrustEntry(UUID owner, BlockPos pos, List<String> names) {
     }
 }

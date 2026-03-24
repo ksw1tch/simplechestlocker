@@ -21,7 +21,7 @@ public abstract class PistonBlockMixin {
             cancellable = true
     )
     private void preventMovingLockedBlock(World world, BlockPos pos, Direction dir, boolean extend, CallbackInfoReturnable<Boolean> cir) {
-        if (world.isClient) return;
+        if (world.isClient()) return;
 
         BlockPos targetPos = pos.offset(dir);
         if (LockManager.isLocked((ServerWorld) world, targetPos)) {
@@ -35,7 +35,7 @@ public abstract class PistonBlockMixin {
             cancellable = true
     )
     private void preventDestroyingLockedBlock(World world, BlockPos pos, Direction dir, boolean extend, CallbackInfoReturnable<Boolean> cir) {
-        if (world.isClient) return;
+        if (world.isClient()) return;
 
         BlockPos targetPos = pos.offset(dir);
         if (LockManager.isLocked((ServerWorld) world, targetPos)) {

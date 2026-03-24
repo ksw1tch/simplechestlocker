@@ -61,7 +61,7 @@ public class LockCommands {
         HitResult hit = player.raycast(6.0, player.getYaw(), false);
         if (hit.getType() == HitResult.Type.BLOCK) {
             BlockPos pos = ((BlockHitResult) hit).getBlockPos();
-            BlockState state = player.getWorld().getBlockState(pos);
+            BlockState state = player.getEntityWorld().toServerWorld().getBlockState(pos);
             if (state.getBlock() instanceof ChestBlock || state.getBlock() instanceof BarrelBlock) {
                 return pos;
             }
@@ -72,7 +72,7 @@ public class LockCommands {
     private static int handleLock(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         BlockPos pos = getTargetedContainerPos(player);
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getEntityWorld().toServerWorld();
         if (pos == null) {
             player.sendMessage(Text.literal("§cNo container in sight!"), false);
             return 0;
@@ -89,7 +89,7 @@ public class LockCommands {
 
     private static int handleUnlock(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getEntityWorld().toServerWorld();
         BlockPos pos = getTargetedContainerPos(player);
         if (pos == null) {
             player.sendMessage(Text.literal("§cNo container in sight!"), false);
@@ -115,7 +115,7 @@ public class LockCommands {
     private static int handleTrust(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         String target = StringArgumentType.getString(ctx, "player");
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getEntityWorld().toServerWorld();
         BlockPos pos = getTargetedContainerPos(player);
         if (pos == null) {
             player.sendMessage(Text.literal("§cNo container in sight!"), false);
@@ -141,7 +141,7 @@ public class LockCommands {
     private static int handleUntrust(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
         String target = StringArgumentType.getString(ctx, "player");
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getEntityWorld().toServerWorld();
         BlockPos pos = getTargetedContainerPos(player);
         if (pos == null) {
             player.sendMessage(Text.literal("§cNo container in sight!"), false);
@@ -166,7 +166,7 @@ public class LockCommands {
 
     private static int handleList(CommandContext<ServerCommandSource> ctx) {
         ServerPlayerEntity player = ctx.getSource().getPlayer();
-        ServerWorld world = player.getServerWorld();
+        ServerWorld world = player.getEntityWorld().toServerWorld();
         BlockPos pos = getTargetedContainerPos(player);
         if (pos == null) {
             player.sendMessage(Text.literal("§cNo container in sight!"), false);
