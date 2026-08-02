@@ -1,7 +1,7 @@
 package me.toobad.simplechestlocker.mixin;
 
+import me.toobad.simplechestlocker.LockConfig;
 import me.toobad.simplechestlocker.LockManager;
-import net.minecraft.block.BlockState;
 import net.minecraft.block.PistonBlock;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.util.math.BlockPos;
@@ -15,31 +15,15 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(PistonBlock.class)
 public abstract class PistonBlockMixin {
 
-    @Inject(
-            method = "move",
-            at = @At(value = "INVOKE", target = "Ljava/util/List;add(Ljava/lang/Object;)Z"),
-            cancellable = true
-    )
-    private void preventMovingLockedBlock(World world, BlockPos pos, Direction dir, boolean extend, CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "move", at = @At("HEAD"), cancellable = true)
+    private void preventPistonInteractionWithLockedBlock(World world, BlockPos pos, Direction dir, boolean extend, CallbackInfoReturnable<Boolean> cir) {
         if (world.isClient()) return;
+        if (!LockConfig.get().protectFromPistons) return;
+        if (!(world instanceof ServerWorld serverWorld)) return;
 
         BlockPos targetPos = pos.offset(dir);
-        if (LockManager.isLocked((ServerWorld) world, targetPos)) {
-            cir.setReturnValue(false); // Cancel piston movement
-        }
-    }
-
-    @Inject(
-            method = "move",
-            at = @At(value = "INVOKE", target = "Lnet/minecraft/block/BlockState;hasBlockEntity()Z"),
-            cancellable = true
-    )
-    private void preventDestroyingLockedBlock(World world, BlockPos pos, Direction dir, boolean extend, CallbackInfoReturnable<Boolean> cir) {
-        if (world.isClient()) return;
-
-        BlockPos targetPos = pos.offset(dir);
-        if (LockManager.isLocked((ServerWorld) world, targetPos)) {
-            cir.setReturnValue(false); // Cancel piston destruction
+        if (LockManager.isLocked(serverWorld, targetPos)) {
+            cir.setReturnValue(false);
         }
     }
 }

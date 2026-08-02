@@ -14,9 +14,6 @@ import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.ChestBlock;
-import net.minecraft.block.BarrelBlock;
 
 import java.util.Set;
 import java.util.UUID;
@@ -61,8 +58,7 @@ public class LockCommands {
         HitResult hit = player.raycast(6.0, player.getYaw(), false);
         if (hit.getType() == HitResult.Type.BLOCK) {
             BlockPos pos = ((BlockHitResult) hit).getBlockPos();
-            BlockState state = player.getEntityWorld().toServerWorld().getBlockState(pos);
-            if (state.getBlock() instanceof ChestBlock || state.getBlock() instanceof BarrelBlock) {
+            if (LockableContainers.isLockable(player.getEntityWorld(), pos)) {
                 return pos;
             }
         }
