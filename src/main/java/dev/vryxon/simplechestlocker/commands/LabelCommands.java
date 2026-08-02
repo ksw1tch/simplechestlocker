@@ -5,6 +5,7 @@ import com.mojang.brigadier.context.CommandContext;
 import dev.vryxon.simplechestlocker.LockManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
@@ -19,10 +20,14 @@ public final class LabelCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
         ServerLevel world = player.level().getLevel();
 
-        String label = StringArgumentType.getString(ctx, "label").trim();
+        String raw = StringArgumentType.getString(ctx, "label").trim();
 
-        if (label.isEmpty()) {
-            sendMsg(player, "§cLabel cannot be empty!");
+        String[] split = CommandHelper.splitTargetSuffix(player, raw, false);
+        if (split != null) {
+            return labelTargeted(player, split[1], split[0]);
+        }
+
+        if (!validateLabel(player, raw)) {
             return 0;
         }
 
@@ -42,21 +47,40 @@ public final class LabelCommands {
             return 0;
         }
 
-        if (LockManager.hasLabel(world, owner, pos, label)) {
+        if (LockManager.hasLabel(world, owner, pos, raw)) {
             sendMsg(player, "§cYou already have another container with that label!");
             return 0;
         }
 
-        LockManager.setLabel(world, owner, pos, label);
-        sendMsg(player, "§aContainer labeled §e" + label);
+        LockManager.setLabel(world, owner, pos, raw);
+        sendMsg(player, "§aContainer labeled §e" + raw);
         return 1;
     }
 
     public static int handleUnlabel(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer player = ctx.getSource().getPlayer();
         ServerLevel world = player.level().getLevel();
-
         BlockPos pos = CommandHelper.getTargetedContainerPos(player);
+
+        try {
+            String target = StringArgumentType.getString(ctx, "target").trim();
+            if (!target.isEmpty()) {
+                GlobalPos globalPos = CommandHelper.resolveTarget(player, target);
+                if (globalPos == null) {
+                    sendMsg(player, "§cNo container found for §e" + target + "§c!");
+                    return 0;
+                }
+                ServerLevel targetWorld = player.level().getServer().getLevel(globalPos.dimension());
+                if (targetWorld == null) {
+                    sendMsg(player, "§cThat container's dimension isn't loaded!");
+                    return 0;
+                }
+                world = targetWorld;
+                pos = globalPos.pos();
+            }
+        } catch (IllegalArgumentException ignored) {
+            // no target argument provided
+        }
 
         if (!CommandHelper.requireTargetedContainer(player, pos)) {
             return 0;
@@ -84,10 +108,14 @@ public final class LabelCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
         ServerLevel world = player.level().getLevel();
 
-        String label = StringArgumentType.getString(ctx, "label").trim();
+        String raw = StringArgumentType.getString(ctx, "label").trim();
 
-        if (label.isEmpty()) {
-            sendMsg(player, "§cLabel cannot be empty!");
+        String[] split = CommandHelper.splitTargetSuffix(player, raw, true);
+        if (split != null) {
+            return renameTargeted(player, split[1], split[0]);
+        }
+
+        if (!validateLabel(player, raw)) {
             return 0;
         }
 
@@ -100,6 +128,75 @@ public final class LabelCommands {
             return 0;
         }
 
+        return renameTargeted(player, world, pos, raw);
+    }
+
+    private static int labelTargeted(ServerPlayer player, String targetToken, String label) {
+        ServerLevel world = player.level().getLevel();
+        GlobalPos globalPos = CommandHelper.resolveTarget(player, targetToken);
+
+        if (globalPos == null) {
+            sendMsg(player, "§cNo container found for §e" + targetToken + "§c!");
+            return 0;
+        }
+        if (!validateLabel(player, label)) {
+            return 0;
+        }
+
+        ServerLevel targetWorld = player.level().getServer().getLevel(globalPos.dimension());
+        if (targetWorld == null) {
+            sendMsg(player, "§cThat container's dimension isn't loaded!");
+            return 0;
+        }
+
+        UUID owner = player.getUUID();
+        BlockPos pos = globalPos.pos();
+
+        if (!LockManager.isLocked(targetWorld, pos)) {
+            sendMsg(player, "§cThat container isn't locked!");
+            return 0;
+        }
+        UUID posOwner = LockManager.getOwner(targetWorld, pos);
+        if (!owner.equals(posOwner)) {
+            sendMsg(player, "§cYou don't own it!");
+            return 0;
+        }
+        if (LockManager.isLabeled(targetWorld, owner, pos)) {
+            sendMsg(player, "§cThis container already has a label! Use §e/scl rename <label>§c.");
+            return 0;
+        }
+        if (LockManager.hasLabel(targetWorld, owner, pos, label)) {
+            sendMsg(player, "§cYou already have another container with that label!");
+            return 0;
+        }
+
+        LockManager.setLabel(targetWorld, owner, pos, label);
+        sendMsg(player, "§aContainer labeled §e" + label);
+        return 1;
+    }
+
+    private static int renameTargeted(ServerPlayer player, String targetToken, String label) {
+        ServerLevel world = player.level().getLevel();
+        GlobalPos globalPos = CommandHelper.resolveTarget(player, targetToken);
+
+        if (globalPos == null) {
+            sendMsg(player, "§cNo container found for §e" + targetToken + "§c!");
+            return 0;
+        }
+        if (!validateLabel(player, label)) {
+            return 0;
+        }
+
+        ServerLevel targetWorld = player.level().getServer().getLevel(globalPos.dimension());
+        if (targetWorld == null) {
+            sendMsg(player, "§cThat container's dimension isn't loaded!");
+            return 0;
+        }
+
+        return renameTargeted(player, targetWorld, globalPos.pos(), label);
+    }
+
+    private static int renameTargeted(ServerPlayer player, ServerLevel world, BlockPos pos, String label) {
         UUID owner = player.getUUID();
 
         if (!LockManager.isLabeled(world, owner, pos)) {
@@ -123,5 +220,21 @@ public final class LabelCommands {
 
         sendMsg(player, "§aRenamed container from §e" + oldLabel + "§a to §e" + label);
         return 1;
+    }
+
+    private static boolean validateLabel(ServerPlayer player, String label) {
+        if (label.isEmpty()) {
+            sendMsg(player, "§cLabel cannot be empty!");
+            return false;
+        }
+        if (label.chars().anyMatch(Character::isWhitespace)) {
+            sendMsg(player, "§cLabel cannot contain spaces!");
+            return false;
+        }
+        if (Character.isDigit(label.charAt(0))) {
+            sendMsg(player, "§cLabel cannot start with a number!");
+            return false;
+        }
+        return true;
     }
 }

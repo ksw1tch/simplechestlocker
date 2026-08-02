@@ -15,6 +15,7 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -290,6 +291,32 @@ public class LockManager extends SavedData {
             }
         }
         return result;
+    }
+
+    public static List<GlobalPos> getSortedLockedContainersForOwner(ServerLevel world, UUID owner) {
+        List<GlobalPos> sorted = new ArrayList<>(getUniqueLockedContainersForOwner(world, owner));
+        sorted.sort(Comparator
+                .comparing((GlobalPos gp) -> gp.dimension().identifier().toString())
+                .thenComparing(GlobalPos::pos));
+        return sorted;
+    }
+
+    public static GlobalPos getPosFromIndex(ServerLevel world, UUID owner, int index) {
+        List<GlobalPos> sorted = getSortedLockedContainersForOwner(world, owner);
+        if (index < 0 || index >= sorted.size()) {
+            return null;
+        }
+        return sorted.get(index);
+    }
+
+    public static int getContainerIndex(ServerLevel world, UUID owner, GlobalPos target) {
+        List<GlobalPos> sorted = getSortedLockedContainersForOwner(world, owner);
+        for (int i = 0; i < sorted.size(); i++) {
+            if (sorted.get(i).equals(target)) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     public static Set<GlobalPos> getUniqueLockedContainersForOwner(ServerLevel world, UUID owner) {

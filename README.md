@@ -1,23 +1,9 @@
 # SimpleChestLocker
+Does what it's supposed to.
 
-A Minecraft Fabric mod that allows players to lock chests and grant access to other players.
+A Minecraft Fabric mod that allows players to lock containers and grant access to other players.
 
-## Commands
-
-- `/scl version` - Displays the mod version
-- `/scl lock` - Lock the chest you're looking at
-- `/scl unlock` - Unlock the chest you're looking at (if you own it)
-- `/scl label <label>` - Label the locked chest you're looking at
-- `/scl rename <label>` - Rename the label of the locked chest you're looking at
-- `/scl unlabel` - Remove the label of the locked chest you're looking at
-- `/scl trust <player>` - Trust a player with the chest you're looking at
-- `/scl trust <player> <label>` - Trust a player with a labeled chest
-- `/scl untrust <player>` - Untrust a player from the chest you're looking at
-- `/scl untrust <player> <label>` - Untrust a player from a labeled chest
-- `/scl players` - List trusted players for the chest you're looking at
-- `/scl players <label>` - List trusted players for a labeled chest
-- `/scl list` - List all your locked chests with their positions, types, and labels
-- `/scl list <label>` - List trusted players for a labeled chest
+[Modrinth](https://modrinth.com/mod/simplechestlocker)
 
 ## Features
 - Lock any container (chests, dispensers, modded containers, etc.)
