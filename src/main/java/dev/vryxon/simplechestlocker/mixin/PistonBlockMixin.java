@@ -18,6 +18,7 @@ public abstract class PistonBlockMixin {
     @Inject(method = "moveBlocks", at = @At("HEAD"), cancellable = true)
     private void preventPistonInteractionWithLockedBlock(Level world, BlockPos pos, Direction dir, boolean extend, CallbackInfoReturnable<Boolean> cir) {
         if (world.isClientSide()) return;
+        if (!extend) return;
         if (!LockConfig.get().protectFromPistons) return;
         if (!(world instanceof ServerLevel serverWorld)) return;
 
