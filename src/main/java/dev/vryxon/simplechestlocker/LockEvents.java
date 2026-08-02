@@ -1,20 +1,19 @@
-package me.toobad.simplechestlocker;
+package dev.vryxon.simplechestlocker;
 
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
+import net.minecraft.world.InteractionResult;
 import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
-import net.minecraft.inventory.Inventory;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.text.Text;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.math.BlockPos;
-
 import java.util.UUID;
 
 public class LockEvents {
 
     public static void register() {
         UseBlockCallback.EVENT.register((player, world, hand, hit) -> {
-            if (world.isClient() || !(world instanceof ServerWorld serverWorld)) return ActionResult.PASS;
+            if (world.isClientSide() || !(world instanceof ServerLevel serverWorld)) return InteractionResult.PASS;
 
             BlockPos clickPos = hit.getBlockPos();
             String playerName = player.getName().getString();
@@ -25,20 +24,20 @@ public class LockEvents {
                 UUID owner = LockManager.getOwner(serverWorld, pos);
                 if (owner == null) continue;
 
-                if (!owner.equals(player.getUuid()) &&
+                if (!owner.equals(player.getUUID()) &&
                         !LockManager.isTrusted(serverWorld, owner, pos, playerName)) {
-                    player.sendMessage(Text.literal("§cThis container is locked!"), true);
-                    return ActionResult.FAIL;
+                    player.displayClientMessage(Component.literal("§cThis container is locked!"), true);
+                    return InteractionResult.FAIL;
                 }
             }
-            return ActionResult.PASS;
+            return InteractionResult.PASS;
         });
 
         PlayerBlockBreakEvents.BEFORE.register((world, player, breakPos, state, blockEntity) -> {
-            if (world.isClient() || !(world instanceof ServerWorld serverWorld)) return true;
+            if (world.isClientSide() || !(world instanceof ServerLevel serverWorld)) return true;
 
             boolean allowed = true;
-            UUID playerId = player.getUuid();
+            UUID playerId = player.getUUID();
 
             for (BlockPos pos : LockableContainers.resolveLockableBlocks(breakPos, serverWorld)) {
                 if (!LockManager.isLocked(serverWorld, pos)) continue;
@@ -47,7 +46,7 @@ public class LockEvents {
                 if (owner == null) continue;
 
                 if (!owner.equals(playerId)) {
-                    player.sendMessage(Text.literal("§cYou cannot break a locked container!"), true);
+                    player.displayClientMessage(Component.literal("§cYou cannot break a locked container!"), true);
                     allowed = false;
                 } else {
                     LockManager.removeLock(serverWorld, pos);
@@ -57,8 +56,8 @@ public class LockEvents {
         });
     }
 
-    public static boolean isInventoryLocked(ServerWorld world, BlockPos pos) {
+    public static boolean isInventoryLocked(ServerLevel world, BlockPos pos) {
         if (!LockManager.isLocked(world, pos)) return false;
-        return world.getBlockEntity(pos) instanceof Inventory;
+        return world.getBlockEntity(pos) instanceof Container;
     }
 }

@@ -1,22 +1,20 @@
-package me.toobad.simplechestlocker;
+package dev.vryxon.simplechestlocker;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.nbt.NbtElement;
-import net.minecraft.registry.RegistryKey;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.server.world.ServerWorld;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Uuids;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.GlobalPos;
-import net.minecraft.world.PersistentState;
-import net.minecraft.world.PersistentStateType;
-import net.minecraft.world.World;
-
 import java.util.*;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.GlobalPos;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.saveddata.SavedData;
+import net.minecraft.world.level.saveddata.SavedDataType;
 
-public class LockManager extends PersistentState {
+public class LockManager extends SavedData {
     private static final String NAME = "simplechestlocker_data";
 
     private final Map<GlobalPos, UUID> lockedChests = new HashMap<>();
@@ -25,11 +23,11 @@ public class LockManager extends PersistentState {
     private static final Codec<LockEntry> LOCK_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Identifier.CODEC.fieldOf("dim").forGetter(LockEntry::dimensionId),
             BlockPos.CODEC.fieldOf("pos").forGetter(LockEntry::pos),
-            Uuids.STRING_CODEC.fieldOf("owner").forGetter(LockEntry::owner)
+            UUIDUtil.STRING_CODEC.fieldOf("owner").forGetter(LockEntry::owner)
     ).apply(instance, LockEntry::new));
 
     private static final Codec<TrustEntry> TRUST_ENTRY_CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Uuids.STRING_CODEC.fieldOf("owner").forGetter(TrustEntry::owner),
+            UUIDUtil.STRING_CODEC.fieldOf("owner").forGetter(TrustEntry::owner),
             BlockPos.CODEC.fieldOf("pos").forGetter(TrustEntry::pos),
             Codec.STRING.listOf().fieldOf("names").forGetter(TrustEntry::names)
     ).apply(instance, TrustEntry::new));
@@ -39,19 +37,19 @@ public class LockManager extends PersistentState {
             TRUST_ENTRY_CODEC.listOf().optionalFieldOf("trustedPlayers", List.of()).forGetter(LockManager::toTrustEntries)
     ).apply(instance, LockManager::new));
 
-    private static final PersistentStateType<LockManager> TYPE = new PersistentStateType<>(
+    private static final SavedDataType<LockManager> TYPE = new SavedDataType<>(
             NAME,
             LockManager::new,
             CODEC,
             null
     );
 
-    public static LockManager get(ServerWorld world) {
+    public static LockManager get(ServerLevel world) {
         // Store once in the overworld PSM so all dimensions share the same data.
         return world.getServer()
-                .getOverworld()
-                .getPersistentStateManager()
-                .getOrCreate(TYPE);
+                .overworld()
+                .getDataStorage()
+                .computeIfAbsent(TYPE);
     }
 
     public LockManager() {
@@ -74,7 +72,7 @@ public class LockManager extends PersistentState {
         List<LockEntry> entries = new ArrayList<>(lockedChests.size());
         for (Map.Entry<GlobalPos, UUID> entry : lockedChests.entrySet()) {
             entries.add(new LockEntry(
-                    entry.getKey().dimension().getValue(),
+                    entry.getKey().dimension().identifier(),
                     entry.getKey().pos(),
                     entry.getValue()
             ));
@@ -102,45 +100,45 @@ public class LockManager extends PersistentState {
 
     // --- Locking API ---
 
-    public static boolean lockChest(ServerWorld world, UUID owner, BlockPos pos) {
+    public static boolean lockChest(ServerLevel world, UUID owner, BlockPos pos) {
         LockManager mgr = get(world);
-        GlobalPos key = GlobalPos.create(world.getRegistryKey(), pos);
+        GlobalPos key = GlobalPos.of(world.dimension(), pos);
 
         if (mgr.lockedChests.containsKey(key)) {
             return false;
         }
 
         mgr.lockedChests.put(key, owner);
-        mgr.markDirty();
+        mgr.setDirty();
         return true;
     }
 
-    public static boolean isLocked(ServerWorld world, BlockPos pos) {
-        return get(world).lockedChests.containsKey(GlobalPos.create(world.getRegistryKey(), pos));
+    public static boolean isLocked(ServerLevel world, BlockPos pos) {
+        return get(world).lockedChests.containsKey(GlobalPos.of(world.dimension(), pos));
     }
 
-    public static UUID getOwner(ServerWorld world, BlockPos pos) {
-        return get(world).lockedChests.get(GlobalPos.create(world.getRegistryKey(), pos));
+    public static UUID getOwner(ServerLevel world, BlockPos pos) {
+        return get(world).lockedChests.get(GlobalPos.of(world.dimension(), pos));
     }
 
-    public static void removeLock(ServerWorld world, BlockPos pos) {
+    public static void removeLock(ServerLevel world, BlockPos pos) {
         LockManager mgr = get(world);
-        mgr.lockedChests.remove(GlobalPos.create(world.getRegistryKey(), pos));
-        mgr.markDirty();
+        mgr.lockedChests.remove(GlobalPos.of(world.dimension(), pos));
+        mgr.setDirty();
     }
 
     // --- Trust API (per-chest) ---
 
-    public static void addTrusted(ServerWorld world, UUID owner, BlockPos pos, String playerName) {
+    public static void addTrusted(ServerLevel world, UUID owner, BlockPos pos, String playerName) {
         LockManager mgr = get(world);
         mgr.trustedPlayers
                 .computeIfAbsent(owner, __ -> new HashMap<>())
                 .computeIfAbsent(pos, __ -> new HashSet<>())
                 .add(playerName);
-        mgr.markDirty();
+        mgr.setDirty();
     }
 
-    public static void removeTrusted(ServerWorld world, UUID owner, BlockPos pos, String playerName) {
+    public static void removeTrusted(ServerLevel world, UUID owner, BlockPos pos, String playerName) {
         LockManager mgr = get(world);
         Map<BlockPos, Set<String>> ownerMap = mgr.trustedPlayers.get(owner);
 
@@ -160,10 +158,10 @@ public class LockManager extends PersistentState {
             mgr.trustedPlayers.remove(owner);
         }
 
-        mgr.markDirty();
+        mgr.setDirty();
     }
 
-    public static boolean isTrusted(ServerWorld world, UUID owner, BlockPos pos, String playerName) {
+    public static boolean isTrusted(ServerLevel world, UUID owner, BlockPos pos, String playerName) {
         LockManager mgr = get(world);
         return mgr.trustedPlayers
                 .getOrDefault(owner, Collections.emptyMap())
@@ -171,7 +169,7 @@ public class LockManager extends PersistentState {
                 .contains(playerName);
     }
 
-    public static Set<String> getTrusted(ServerWorld world, UUID owner, BlockPos pos) {
+    public static Set<String> getTrusted(ServerLevel world, UUID owner, BlockPos pos) {
         return Collections.unmodifiableSet(
                 get(world).trustedPlayers
                         .getOrDefault(owner, Collections.emptyMap())
@@ -181,8 +179,8 @@ public class LockManager extends PersistentState {
 
     private record LockEntry(Identifier dimensionId, BlockPos pos, UUID owner) {
         private GlobalPos toGlobalPos() {
-            RegistryKey<World> dimKey = RegistryKey.of(RegistryKeys.WORLD, dimensionId);
-            return GlobalPos.create(dimKey, pos);
+            ResourceKey<Level> dimKey = ResourceKey.create(Registries.DIMENSION, dimensionId);
+            return GlobalPos.of(dimKey, pos);
         }
     }
 

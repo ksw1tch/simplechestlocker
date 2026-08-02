@@ -12,7 +12,7 @@
 	"mixins": ["simplechestlocker.mixins.json"],
 	"entrypoints": {
 		"main": [
-			"me.toobad.simplechestlocker.SimpleChestLocker"
+			"dev.vryxon.simplechestlocker.SimpleChestLocker"
 		]
 	}
 }

@@ -1,4 +1,4 @@
-package me.toobad.simplechestlocker;
+package dev.vryxon.simplechestlocker;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
