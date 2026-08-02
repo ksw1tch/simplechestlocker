@@ -6,7 +6,8 @@
   "mixins": [
     "ExplosionImplMixin",
     "HopperBlockEntityMixin",
-    "PistonBlockMixin"
+    "PistonBlockMixin",
+    "ServerGamePacketListenerImplMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -20,55 +20,67 @@ public final class TrustCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
         String target = StringArgumentType.getString(ctx, "player");
 
-        return trustPlayer(player, target, CommandHelper.getTargetedContainerPos(player), null);
+        ServerLevel world = player.level().getLevel();
+        return trustPlayer(player, world, target, CommandHelper.getTargetedContainerPos(player), null);
     }
 
     public static int handleTrustLabel(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer player = ctx.getSource().getPlayer();
-        ServerLevel world = player.level().getLevel();
-
         String target = StringArgumentType.getString(ctx, "player");
         String label = StringArgumentType.getString(ctx, "label");
 
-        GlobalPos globalPos = LockManager.getPosFromLabel(world, player.getUUID(), label);
+        GlobalPos globalPos = CommandHelper.resolveTarget(player, label);
 
         if (globalPos == null) {
-            sendMsg(player, "§cNo container with the label §e" + label + "§c exists!");
+            sendMsg(player, "§cNo container found for §e" + label + "§c!");
             return 0;
         }
 
-        BlockPos pos = globalPos.pos();
-        return trustPlayer(player, target, pos, label);
+        return trustPlayerGlobal(player, target, globalPos, label);
     }
 
     public static int handleUntrust(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer player = ctx.getSource().getPlayer();
         String target = StringArgumentType.getString(ctx, "player");
 
-        return untrustPlayer(player, target, CommandHelper.getTargetedContainerPos(player), null);
+        ServerLevel world = player.level().getLevel();
+        return untrustPlayer(player, world, target, CommandHelper.getTargetedContainerPos(player), null);
     }
 
     public static int handleUntrustLabel(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer player = ctx.getSource().getPlayer();
-        ServerLevel world = player.level().getLevel();
-
         String target = StringArgumentType.getString(ctx, "player");
         String label = StringArgumentType.getString(ctx, "label");
 
-        GlobalPos globalPos = LockManager.getPosFromLabel(world, player.getUUID(), label);
+        GlobalPos globalPos = CommandHelper.resolveTarget(player, label);
 
         if (globalPos == null) {
-            sendMsg(player, "§cNo container with the label §e" + label + "§c exists!");
+            sendMsg(player, "§cNo container found for §e" + label + "§c!");
             return 0;
         }
 
-        BlockPos pos = globalPos.pos();
-        return untrustPlayer(player, target, pos, label);
+        return untrustPlayerGlobal(player, target, globalPos, label);
     }
 
-    private static int trustPlayer(ServerPlayer player, String target, BlockPos pos, String label) {
-        ServerLevel world = player.level().getLevel();
+    private static int trustPlayerGlobal(ServerPlayer player, String target, GlobalPos globalPos, String label) {
+        ServerLevel world = player.level().getServer().getLevel(globalPos.dimension());
+        if (world == null) {
+            sendMsg(player, "§cThat container's dimension isn't loaded!");
+            return 0;
+        }
+        return trustPlayer(player, world, target, globalPos.pos(), label);
+    }
 
+    private static int untrustPlayerGlobal(ServerPlayer player, String target, GlobalPos globalPos, String label) {
+        ServerLevel world = player.level().getServer().getLevel(globalPos.dimension());
+        if (world == null) {
+            sendMsg(player, "§cThat container's dimension isn't loaded!");
+            return 0;
+        }
+        return untrustPlayer(player, world, target, globalPos.pos(), label);
+    }
+
+    private static int trustPlayer(ServerPlayer player, ServerLevel world, String target, BlockPos pos, String label) {
         if (pos == null) {
             sendMsg(player, "§cNo container found!");
             return 0;
@@ -100,9 +112,7 @@ public final class TrustCommands {
         return 1;
     }
 
-    private static int untrustPlayer(ServerPlayer player, String target, BlockPos pos, String label) {
-        ServerLevel world = player.level().getLevel();
-
+    private static int untrustPlayer(ServerPlayer player, ServerLevel world, String target, BlockPos pos, String label) {
         if (pos == null) {
             sendMsg(player, "§cNo container found!");
             return 0;

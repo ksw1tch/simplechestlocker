@@ -12,7 +12,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -45,17 +44,24 @@ public final class InfoCommands {
         sendMsg(player, "§e/scl version §7- Display the mod version");
         sendMsg(player, "§e/scl lock §7- Lock the container you're looking at");
         sendMsg(player, "§e/scl unlock §7- Unlock the container you're looking at");
+        sendMsg(player, "§e/scl unlock <label|index> §7- Unlock a labeled or indexed container");
         sendMsg(player, "§e/scl label <label> §7- Label the locked container you're looking at");
-        sendMsg(player, "§e/scl rename <label> §7- Rename a labeled container's label");
+        sendMsg(player, "§e/scl label <label> <index> §7- Label container <index> (e.g. /scl label storage 0)");
+        sendMsg(player, "§e/scl rename <label> §7- Rename the container you're looking at");
+        sendMsg(player, "§e/scl rename <label> <label|index> §7- Rename a specific container's label");
         sendMsg(player, "§e/scl unlabel §7- Remove the label from the container you're looking at");
+        sendMsg(player, "§e/scl unlabel <label|index> §7- Remove the label from a specific container");
         sendMsg(player, "§e/scl trust <player> §7- Trust a player with the container you're looking at");
-        sendMsg(player, "§e/scl trust <player> <label> §7- Trust a player with a labeled container");
+        sendMsg(player, "§e/scl trust <player> <label|index> §7- Trust a player with a labeled or indexed container");
         sendMsg(player, "§e/scl untrust <player> §7- Untrust a player from the container you're looking at");
-        sendMsg(player, "§e/scl untrust <player> <label> §7- Untrust a player from a labeled container");
+        sendMsg(player, "§e/scl untrust <player> <label|index> §7- Untrust a player from a labeled or indexed container");
         sendMsg(player, "§e/scl players §7- List players trusted with the container you're looking at");
-        sendMsg(player, "§e/scl players <label> §7- List players trusted with a labeled container");
-        sendMsg(player, "§e/scl list §7- List all your locked containers");
+        sendMsg(player, "§e/scl players <label|index> §7- List players trusted with a labeled or indexed container");
+        sendMsg(player, "§e/scl list §7- List all your locked containers (shows their index)");
         sendMsg(player, "§e/scl list <page> §7- List locked containers at a specific page");
+        sendMsg(player, "§e/scl gui §7- Open the GUI menu");
+        sendMsg(player, "§7Each container gets an index shown in §e/scl list§7 (Container 0, Container 1, ...). "
+                + "Use that number in commands to manage it remotely.");
         return 1;
     }
 
@@ -71,10 +77,7 @@ public final class InfoCommands {
             // page argument not provided, default to 1
         }
 
-        List<GlobalPos> locked = new ArrayList<>(LockManager.getUniqueLockedContainersForOwner(world, player.getUUID()));
-        locked.sort(Comparator
-                .comparing((GlobalPos gp) -> gp.dimension().identifier().toString())
-                .thenComparing(GlobalPos::pos));
+        List<GlobalPos> locked = new ArrayList<>(LockManager.getSortedLockedContainersForOwner(world, player.getUUID()));
 
         if (locked.isEmpty()) {
             sendMsg(player, "§eYou don't have any locked containers.");
@@ -98,6 +101,7 @@ public final class InfoCommands {
             }
 
             BlockPos pos = globalPos.pos();
+            int index = LockManager.getContainerIndex(world, player.getUUID(), globalPos);
             String dimension = globalPos.dimension().identifier().toString();
             String type = LockableContainers.getContainerType(level, pos);
             String label = LockManager.getLabel(level, player.getUUID(), pos);
@@ -109,7 +113,8 @@ public final class InfoCommands {
             }
 
             sendMsg(player,
-                    label +
+                    "§fContainer §e" + index +
+                            " §7- " + label +
                             " §7- §f" + type +
                             " §7(" +
                             pos.getX() + ", " +
@@ -143,14 +148,18 @@ public final class InfoCommands {
 
     public static int handlePlayersLabel(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer player = ctx.getSource().getPlayer();
-        ServerLevel world = player.level().getLevel();
+        String target = StringArgumentType.getString(ctx, "label");
 
-        String label = StringArgumentType.getString(ctx, "label");
-
-        GlobalPos globalPos = LockManager.getPosFromLabel(world, player.getUUID(), label);
+        GlobalPos globalPos = CommandHelper.resolveTarget(player, target);
 
         if (globalPos == null) {
-            sendMsg(player, "§cNo container with the label §e" + label + "§c exists!");
+            sendMsg(player, "§cNo container found for §e" + target + "§c!");
+            return 0;
+        }
+
+        ServerLevel world = player.level().getServer().getLevel(globalPos.dimension());
+        if (world == null) {
+            sendMsg(player, "§cThat container's dimension isn't loaded!");
             return 0;
         }
 
