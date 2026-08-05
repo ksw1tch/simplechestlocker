@@ -16,7 +16,6 @@ import net.minecraft.world.phys.HitResult;
 
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static dev.vryxon.simplechestlocker.helpers.MsgHelper.sendMsg;
@@ -44,36 +43,6 @@ public final class CommandHelper {
             return LockManager.getPosFromIndex(world, player.getUUID(), Integer.parseInt(trimmed));
         }
         return LockManager.getPosFromLabel(world, player.getUUID(), trimmed);
-    }
-
-    public static String[] splitTargetSuffix(ServerPlayer player, String input, boolean allowLabelTarget) {
-        ServerLevel world = player.level().getLevel();
-        String trimmed = input.trim();
-
-        Matcher idx = Pattern.compile("^(.*)\\s+(\\d+)$").matcher(trimmed);
-        if (idx.matches() && !idx.group(1).trim().isEmpty()) {
-            return new String[]{idx.group(1).trim(), idx.group(2)};
-        }
-
-        if (!allowLabelTarget) {
-            return null;
-        }
-
-        String best = null;
-        for (String label : LockManager.getAllLabels(world, player.getUUID())) {
-            if (label != null && !label.isEmpty() && trimmed.endsWith(" " + label)) {
-                if (best == null || label.length() > best.length()) {
-                    best = label;
-                }
-            }
-        }
-        if (best != null) {
-            String name = trimmed.substring(0, trimmed.length() - best.length() - 1).trim();
-            if (!name.isEmpty()) {
-                return new String[]{name, best};
-            }
-        }
-        return null;
     }
 
     public static String targetRef(ServerPlayer player, GlobalPos pos) {

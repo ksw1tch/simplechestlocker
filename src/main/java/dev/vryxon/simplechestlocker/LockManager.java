@@ -12,21 +12,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class LockManager extends SavedData {
     private static final String NAME = "simplechestlocker_data";
 
-    private final Map<GlobalPos, UUID> lockedChests = new HashMap<>();
+    private final Map<GlobalPos, UUID> lockedChests = new LinkedHashMap<>();
     private final Map<UUID, Map<GlobalPos, Set<String>>> trustedPlayers = new HashMap<>();
     private final Map<UUID, Map<GlobalPos, String>> labels = new HashMap<>();
 
@@ -296,9 +287,24 @@ public class LockManager extends SavedData {
     public static List<GlobalPos> getSortedLockedContainersForOwner(ServerLevel world, UUID owner) {
         List<GlobalPos> sorted = new ArrayList<>(getUniqueLockedContainersForOwner(world, owner));
         sorted.sort(Comparator
-                .comparing((GlobalPos gp) -> gp.dimension().identifier().toString())
+                .comparingInt((GlobalPos gp) -> lookupInsertOrder(world, owner, gp))
+                .thenComparing((GlobalPos gp) -> gp.dimension().identifier().toString())
                 .thenComparing(GlobalPos::pos));
         return sorted;
+    }
+
+    private static int lookupInsertOrder(ServerLevel world, UUID owner, GlobalPos target) {
+        LockManager mgr = get(world);
+        int order = 0;
+        for (Map.Entry<GlobalPos, UUID> entry : mgr.lockedChests.entrySet()) {
+            if (entry.getValue().equals(owner)) {
+                if (entry.getKey().equals(target)) {
+                    return order;
+                }
+                order++;
+            }
+        }
+        return Integer.MAX_VALUE;
     }
 
     public static GlobalPos getPosFromIndex(ServerLevel world, UUID owner, int index) {

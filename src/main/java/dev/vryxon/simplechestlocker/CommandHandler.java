@@ -31,12 +31,18 @@ public class CommandHandler {
                                             .executes(LockCommands::handleUnlock)))
 
                             .then(Commands.literal("label")
-                                    .then(Commands.argument("label", StringArgumentType.greedyString())
-                                            .executes(LabelCommands::handleLabel)))
+                                    .then(Commands.argument("label", StringArgumentType.word())
+                                            .executes(LabelCommands::handleLabel)
+                                            .then(Commands.argument("target", StringArgumentType.word())
+                                                    .suggests(CommandHelper::suggestTargets)
+                                                    .executes(LabelCommands::handleLabelTargeted))))
 
                             .then(Commands.literal("rename")
-                                    .then(Commands.argument("label", StringArgumentType.greedyString())
-                                            .executes(LabelCommands::handleRename)))
+                                    .then(Commands.argument("label", StringArgumentType.word())
+                                            .executes(LabelCommands::handleRename)
+                                            .then(Commands.argument("target", StringArgumentType.word())
+                                                    .suggests(CommandHelper::suggestTargets)
+                                                    .executes(LabelCommands::handleRenameTargeted))))
 
                             .then(Commands.literal("unlabel")
                                     .executes(LabelCommands::handleUnlabel)
