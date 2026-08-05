@@ -4,7 +4,9 @@ import net.fabricmc.fabric.api.event.player.PlayerBlockBreakEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TextColor;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.Container;
 import net.minecraft.world.InteractionResult;
 
@@ -30,7 +32,9 @@ public class LockEvents {
 
             if (!owner.equals(player.getUUID()) &&
                     !LockManager.isTrusted(serverWorld, owner, clickPos, playerName)) {
-                player.displayClientMessage(Component.literal("§cThis container is locked!"), true);
+                if (player instanceof ServerPlayer sp) {
+                    sp.sendOverlayMessage(Component.literal("This container is locked!").withColor(TextColor.RED));
+                }
                 return InteractionResult.FAIL;
             }
 
@@ -52,7 +56,9 @@ public class LockEvents {
             UUID playerId = player.getUUID();
 
             if (!owner.equals(playerId)) {
-                player.displayClientMessage(Component.literal("§cYou cannot break a locked container!"), true);
+                if (player instanceof ServerPlayer sp) {
+                    sp.sendOverlayMessage(Component.literal("You cannot break a locked container!").withColor(TextColor.RED));
+                }
                 return false;
             }
 

@@ -11,6 +11,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.minecraft.world.level.saveddata.SavedDataType;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,7 +25,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public class LockManager extends SavedData {
-    private static final String NAME = "simplechestlocker_data";
+    private static final Identifier NAME = Identifier.fromNamespaceAndPath("simplechestlocker", "simplechestlocker_data");
 
     private final Map<GlobalPos, UUID> lockedChests = new HashMap<>();
     private final Map<UUID, Map<GlobalPos, Set<String>>> trustedPlayers = new HashMap<>();

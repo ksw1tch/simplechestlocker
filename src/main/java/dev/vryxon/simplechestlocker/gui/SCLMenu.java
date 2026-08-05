@@ -5,7 +5,7 @@ import net.minecraft.core.GlobalPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 
@@ -50,12 +50,12 @@ public class SCLMenu extends AbstractContainerMenu {
     }
 
     @Override
-    public void clicked(int slotIndex, int button, ClickType clickType, Player player) {
+    public void clicked(int slotIndex, int button, ContainerInput input, Player player) {
         if (slotIndex >= 0 && slotIndex < GUI_SIZE && player instanceof ServerPlayer sp) {
             handleGuiClick(slotIndex, sp);
             return;
         }
-        super.clicked(slotIndex, button, clickType, player);
+        super.clicked(slotIndex, button, input, player);
     }
 
     private void handleGuiClick(int slotIndex, ServerPlayer player) {

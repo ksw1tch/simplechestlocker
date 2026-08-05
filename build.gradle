@@ -1,5 +1,5 @@
 plugins {
-    id 'net.fabricmc.fabric-loom-remap' version "${loom_version}"
+    id "net.fabricmc.fabric-loom" version "${loom_version}"
     id 'maven-publish'
 }
 
@@ -18,14 +18,13 @@ repositories {
 
 dependencies {
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
-    mappings loom.officialMojangMappings()
-    modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
-	modImplementation("net.fabricmc.fabric-api:fabric-events-interaction-v0:${project.fabric_version}")
-	modImplementation("net.fabricmc.fabric-api:fabric-lifecycle-events-v1:${project.fabric_version}")
-	modImplementation "net.fabricmc.fabric-api:fabric-transfer-api-v1:${project.fabric_version}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	implementation("net.fabricmc.fabric-api:fabric-events-interaction-v0:${project.fabric_version}")
+	implementation("net.fabricmc.fabric-api:fabric-lifecycle-events-v1:${project.fabric_version}")
+	implementation "net.fabricmc.fabric-api:fabric-transfer-api-v1:${project.fabric_version}"
 
 	// Fabric API (include base modules explicitly if needed)
-	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 }
 
 // Modern processResources configuration
@@ -40,7 +39,7 @@ processResources {
 // Modern Java configuration
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(21)
+		languageVersion = JavaLanguageVersion.of(26)
 	}
 	withSourcesJar()
 }
