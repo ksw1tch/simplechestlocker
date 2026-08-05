@@ -20,14 +20,9 @@ public final class LabelCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
         ServerLevel world = player.level().getLevel();
 
-        String raw = StringArgumentType.getString(ctx, "label").trim();
+        String name = StringArgumentType.getString(ctx, "label").trim();
 
-        String[] split = CommandHelper.splitTargetSuffix(player, raw, false);
-        if (split != null) {
-            return labelTargeted(player, split[1], split[0]);
-        }
-
-        if (!validateLabel(player, raw)) {
+        if (!validateLabel(player, name)) {
             return 0;
         }
 
@@ -47,14 +42,21 @@ public final class LabelCommands {
             return 0;
         }
 
-        if (LockManager.hasLabel(world, owner, pos, raw)) {
+        if (LockManager.hasLabel(world, owner, pos, name)) {
             sendMsg(player, "§cYou already have another container with that label!");
             return 0;
         }
 
-        LockManager.setLabel(world, owner, pos, raw);
-        sendMsg(player, "§aContainer labeled §e" + raw);
+        LockManager.setLabel(world, owner, pos, name);
+        sendMsg(player, "§aContainer labeled §e" + name);
         return 1;
+    }
+
+    public static int handleLabelTargeted(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer player = ctx.getSource().getPlayer();
+        String name = StringArgumentType.getString(ctx, "label").trim();
+        String targetToken = StringArgumentType.getString(ctx, "target").trim();
+        return labelTargeted(player, targetToken, name);
     }
 
     public static int handleUnlabel(CommandContext<CommandSourceStack> ctx) {
@@ -108,14 +110,9 @@ public final class LabelCommands {
         ServerPlayer player = ctx.getSource().getPlayer();
         ServerLevel world = player.level().getLevel();
 
-        String raw = StringArgumentType.getString(ctx, "label").trim();
+        String name = StringArgumentType.getString(ctx, "label").trim();
 
-        String[] split = CommandHelper.splitTargetSuffix(player, raw, true);
-        if (split != null) {
-            return renameTargeted(player, split[1], split[0]);
-        }
-
-        if (!validateLabel(player, raw)) {
+        if (!validateLabel(player, name)) {
             return 0;
         }
 
@@ -128,7 +125,14 @@ public final class LabelCommands {
             return 0;
         }
 
-        return renameTargeted(player, world, pos, raw);
+        return renameTargeted(player, world, pos, name);
+    }
+
+    public static int handleRenameTargeted(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer player = ctx.getSource().getPlayer();
+        String name = StringArgumentType.getString(ctx, "label").trim();
+        String targetToken = StringArgumentType.getString(ctx, "target").trim();
+        return renameTargeted(player, targetToken, name);
     }
 
     private static int labelTargeted(ServerPlayer player, String targetToken, String label) {
