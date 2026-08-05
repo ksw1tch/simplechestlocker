@@ -3,7 +3,8 @@ Does what it's supposed to.
 
 A Minecraft Fabric mod that allows players to lock containers and grant access to other players.
 
-[Modrinth](https://modrinth.com/mod/simplechestlocker)
+[![Modrinth](https://github.com/intergrav/devins-badges/blob/v3/assets/cozy/available/modrinth_64h.png?raw=true)](https://modrinth.com/mod/simplechestlocker)
+[![CurseForge](https://github.com/intergrav/devins-badges/blob/v3/assets/cozy/available/curseforge_64h.png?raw=true)](https://www.curseforge.com/minecraft/mc-mods/simplechestlocker)
 
 ## Features
 - Lock any container (chests, dispensers, modded containers, etc.)
