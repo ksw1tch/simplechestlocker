@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 public class SimpleChestLocker implements ModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger("simplechestlocker");
-    public static String ver = "2.1.0";
+    public static String ver = "2.1.1";
 
     @Override
     public void onInitialize() {

@@ -20,3 +20,4 @@ Located at `config/simplechestlocker.json`:
 - `protectFromHoppers` - Prevent hoppers from extracting items from locked containers (default: true)
 - `protectFromPistons` - Prevent pistons from moving/destroying locked containers (default: true)
 - `protectFromExplosions` - Prevent explosions from destroying locked containers (default: true)
+- `blockBlacklist` - List of block IDs (e.g. `minecraft:dispenser`) that cannot be locked. Default contains two `example:*` placeholders; remove or replace them with the blocks you want disallowed.

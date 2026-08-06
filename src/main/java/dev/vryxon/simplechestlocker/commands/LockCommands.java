@@ -2,6 +2,7 @@ package dev.vryxon.simplechestlocker.commands;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import dev.vryxon.simplechestlocker.LockConfig;
 import dev.vryxon.simplechestlocker.LockManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.BlockPos;
@@ -20,6 +21,11 @@ public final class LockCommands {
         ServerLevel world = player.level().getLevel();
         if (pos == null) {
             sendMsg(player, "§cNo container in sight!");
+            return 0;
+        }
+
+        if (LockConfig.isBlacklisted(world, pos)) {
+            sendMsg(player, "§cThis block is blacklisted in the config!");
             return 0;
         }
 
