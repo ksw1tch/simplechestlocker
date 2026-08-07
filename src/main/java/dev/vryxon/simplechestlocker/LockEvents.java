@@ -44,6 +44,8 @@ public class LockEvents {
         PlayerBlockBreakEvents.BEFORE.register((world, player, breakPos, state, blockEntity) -> {
             if (world.isClientSide() || !(world instanceof ServerLevel serverWorld)) return true;
 
+            BlockPos[] parts = LockableContainers.resolveLockableBlocks(breakPos, serverWorld);
+
             if (!LockManager.isAnyLocked(serverWorld, breakPos)) {
                 return true;
             }
@@ -62,7 +64,13 @@ public class LockEvents {
                 return false;
             }
 
-            LockManager.removeLock(serverWorld, breakPos);
+            try {
+                LockManager.migrateLockOnPartRemoved(serverWorld, breakPos, parts);
+                LockManager.removeLock(serverWorld, breakPos, false);
+            } catch (Throwable t) {
+                dev.vryxon.simplechestlocker.SimpleChestLocker.LOGGER.warn(
+                        "Failed to update lock data after breaking {}: {}", breakPos, t.toString());
+            }
             return true;
         });
     }

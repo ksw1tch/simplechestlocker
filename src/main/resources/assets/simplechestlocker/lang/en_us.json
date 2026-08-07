@@ -1,0 +1,5 @@
+{
+    "modmenu.nameTranslation.simplechestlocker": "SimpleChestLocker",
+    "modmenu.summaryTranslation.simplechestlocker": "A simple chest locker for your servers.",
+    "modmenu.descriptionTranslation.simplechestlocker": "A server-side Fabric mod that lets players lock containers and grant access to others. Supports chest labels, trusts, container indices for remote management, an in-game GUI menu, cross-dimension administration, and modded containers. The optional client-side overlay (lock icons + label) requires the mod on the client too."
+}
