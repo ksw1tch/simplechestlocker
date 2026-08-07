@@ -39,7 +39,7 @@ processResources {
 // Modern Java configuration
 java {
 	toolchain {
-		languageVersion = JavaLanguageVersion.of(26)
+		languageVersion = JavaLanguageVersion.of(25)
 	}
 	withSourcesJar()
 }
