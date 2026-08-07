@@ -2,6 +2,7 @@ package dev.vryxon.simplechestlocker;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import dev.vryxon.simplechestlocker.networking.LockOverlayServer;
 import dev.vryxon.simplechestlocker.persistence.LockEntryCodecs;
 import dev.vryxon.simplechestlocker.persistence.LockEntryCodecs.LabelEntry;
 import dev.vryxon.simplechestlocker.persistence.LockEntryCodecs.LockEntry;
@@ -168,18 +169,71 @@ public class LockManager extends SavedData {
     }
 
     public static void removeLock(ServerLevel world, BlockPos pos) {
+        removeLock(world, pos, true);
+    }
+
+    public static void removeLock(ServerLevel world, BlockPos pos, boolean allParts) {
         LockManager mgr = get(world);
 
-        BlockPos[] parts = LockableContainers.resolveLockableBlocks(pos, world);
+        BlockPos[] parts = allParts
+                ? LockableContainers.resolveLockableBlocks(pos, world)
+                : new BlockPos[]{pos};
 
+        boolean wasLocked = false;
         for (BlockPos part : parts) {
             GlobalPos globalPos = globalPosOf(world, part);
             UUID owner = mgr.lockedChests.remove(globalPos);
 
             if (owner != null) {
+                wasLocked = true;
                 clearChestTrusts(mgr, owner, globalPos);
                 clearChestLabel(mgr, owner, globalPos);
             }
+        }
+
+        if (wasLocked) {
+            mgr.setDirty();
+            LockOverlayServer.broadcastInvalidate(world, pos);
+        }
+    }
+
+    public static void migrateLockOnPartRemoved(ServerLevel world, BlockPos removedPos, BlockPos[] partsBeforeRemoval) {
+        LockManager mgr = get(world);
+        GlobalPos removedGp = globalPosOf(world, removedPos);
+        UUID owner = mgr.lockedChests.get(removedGp);
+        if (owner == null) {
+            return;
+        }
+
+        BlockPos target = null;
+        for (BlockPos part : partsBeforeRemoval) {
+            if (part.equals(removedPos)) {
+                continue;
+            }
+            if (!LockableContainers.isLockable(world, part)) {
+                continue;
+            }
+            if (!mgr.lockedChests.containsKey(globalPosOf(world, part))) {
+                target = part;
+                break;
+            }
+        }
+
+        if (target == null) {
+            return;
+        }
+
+        GlobalPos targetGp = globalPosOf(world, target);
+        mgr.lockedChests.put(targetGp, owner);
+
+        Map<GlobalPos, String> ownerLabels = mgr.labels.get(owner);
+        if (ownerLabels != null && ownerLabels.containsKey(removedGp)) {
+            ownerLabels.put(targetGp, ownerLabels.get(removedGp));
+        }
+
+        Map<GlobalPos, Set<String>> ownerTrusts = mgr.trustedPlayers.get(owner);
+        if (ownerTrusts != null && ownerTrusts.containsKey(removedGp)) {
+            ownerTrusts.put(targetGp, new HashSet<>(ownerTrusts.get(removedGp)));
         }
 
         mgr.setDirty();
@@ -353,9 +407,7 @@ public class LockManager extends SavedData {
                     canonical = part;
                 }
             }
-            if (gp.pos().equals(canonical)) {
-                unique.add(gp);
-            }
+            unique.add(GlobalPos.of(gp.dimension(), canonical));
         }
 
         return unique;

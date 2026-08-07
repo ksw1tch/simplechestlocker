@@ -13,6 +13,20 @@
 	"entrypoints": {
 		"main": [
 			"dev.vryxon.simplechestlocker.SimpleChestLocker"
+		],
+		"client": [
+			"dev.vryxon.simplechestlocker.client.SimpleChestLockerClient"
 		]
+	},
+	"custom": {
+		"modmenu": {
+			"badges": [],
+			"links": {
+				"modmenu.github": "https://github.com/ksw1tch/simplechestlocker",
+				"modmenu.modrinth": "https://modrinth.com/mod/simplechestlocker",
+				"modmenu.curseforge": "https://www.curseforge.com/minecraft/mc-mods/simplechestlocker"
+			},
+			"update_checker": false
+		}
 	}
 }

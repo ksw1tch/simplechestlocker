@@ -1,0 +1,6 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "simplechestlocker:item/lock_unlocked"
+  }
+}

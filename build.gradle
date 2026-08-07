@@ -4,11 +4,11 @@ plugins {
 }
 
 // Project version properties should be in gradle.properties
-version = project.mod_version
+version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
 
 base {
-	archivesName = "${project.archives_base_name}-${project.minecraft_version}"
+	archivesName = project.archives_base_name
 }
 
 repositories {
@@ -32,7 +32,7 @@ processResources {
 	inputs.property "version", project.version
 
 	filesMatching("fabric.mod.json") {
-		expand "version": project.version
+		expand "version": project.mod_version
 	}
 }
 
