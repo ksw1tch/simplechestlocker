@@ -14,11 +14,13 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.SignBlockEntity;
 import net.minecraft.world.level.block.entity.SignText;
+import net.minecraft.world.level.block.entity.SignTextSlot;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Consumer;
@@ -41,9 +43,10 @@ public final class SignInputHandler {
 
         BlockState signState = Blocks.OAK_SIGN.defaultBlockState();
         SignBlockEntity sign = new SignBlockEntity(pos, signState);
-        SignText initialText = sign.getFrontText()
-                .setMessage(0, Component.literal(""))
-                .setMessage(1, Component.literal(prompt));
+        SignText initialText = sign.getText(SignTextSlot.FRONT).asMutable()
+                .setLine(0, Component.literal(""))
+                .setLine(1, Component.literal(prompt))
+                .asImmutable();
 
         player.connection.send(new ClientboundBlockUpdatePacket(pos, signState));
 
@@ -51,7 +54,7 @@ public final class SignInputHandler {
         player.connection.send(ClientboundBlockEntityDataPacket.create(sign, (be, registry) -> {
             CompoundTag tag = new CompoundTag();
             RegistryOps<Tag> ops = RegistryOps.create(NbtOps.INSTANCE, registry);
-            SignText.DIRECT_CODEC.encodeStart(ops, initialText).result()
+            SignText.CODEC.encodeStart(ops, initialText).result()
                     .ifPresent(t -> tag.put("front_text", t));
             return tag;
         }));
@@ -59,7 +62,7 @@ public final class SignInputHandler {
 
         long expiry = System.currentTimeMillis() + 60000;
         PENDING.put(player.getUUID(), new PendingInput(player, pos, sign, callback, expiry));
-        player.connection.send(new ClientboundOpenSignEditorPacket(pos, true));
+        player.connection.send(new ClientboundOpenSignEditorPacket(pos, SignTextSlot.FRONT));
     }
 
     private static BlockPos findSignPos(ServerPlayer player, ServerLevel world) {
@@ -87,13 +90,13 @@ public final class SignInputHandler {
         return null;
     }
 
-    public static void handleSignUpdate(ServerPlayer player, BlockPos pos, String[] lines) {
+    public static void handleSignUpdate(ServerPlayer player, BlockPos pos, List<String> lines) {
         PendingInput input = PENDING.remove(player.getUUID());
         if (input == null) return;
         if (!input.pos().equals(pos)) return;
         if (System.currentTimeMillis() > input.expiry()) return;
 
-        String text = lines.length > 0 ? lines[0].trim() : "";
+        String text = !lines.isEmpty() ? lines.get(0).trim() : "";
         input.callback().accept(text);
         restoreClientBlock(player, pos);
     }

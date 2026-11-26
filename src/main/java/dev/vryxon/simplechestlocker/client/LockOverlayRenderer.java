@@ -204,7 +204,7 @@ public final class LockOverlayRenderer {
             double anchorY = anchor.y - camPos.y;
             double anchorZ = anchor.z - camPos.z;
             mtx.translate(anchorX, anchorY, anchorZ);
-            mtx.mulPose(com.mojang.math.Axis.YP.rotationDegrees(yawDeg));
+            mtx.rotateDegrees(com.mojang.math.Axis.YP, yawDeg);
             float iconScale = 0.50f;
             mtx.translate(0, 0, 0.5f * iconScale);
             mtx.scale(iconScale, iconScale, iconScale);

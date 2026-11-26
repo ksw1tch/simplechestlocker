@@ -19,8 +19,8 @@ public abstract class ServerGamePacketListenerImplMixin {
     @Inject(method = "handleSignUpdate", at = @At("HEAD"), cancellable = true)
     private void onSignUpdate(ServerboundSignUpdatePacket packet, CallbackInfo ci) {
         ServerPlayer sp = this.player;
-        if (sp != null && SignInputHandler.isPending(sp, packet.getPos())) {
-            SignInputHandler.handleSignUpdate(sp, packet.getPos(), packet.getLines());
+        if (sp != null && SignInputHandler.isPending(sp, packet.pos())) {
+            SignInputHandler.handleSignUpdate(sp, packet.pos(), packet.lines());
             ci.cancel();
         }
     }
